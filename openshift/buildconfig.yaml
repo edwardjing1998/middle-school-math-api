@@ -1,32 +1,50 @@
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
+
 metadata:
   name: middle-school-math-api
   labels:
     app.kubernetes.io/name: middle-school-math-api
+
 spec:
   runPolicy: SerialLatestOnly
+
+  # Maximum total duration of an active build.
   completionDeadlineSeconds: 7200
+
   successfulBuildsHistoryLimit: 2
   failedBuildsHistoryLimit: 2
+
+  # GitHub Actions uploads the source archive using:
+  # oc start-build --from-archive=/tmp/source.tar.gz
   source:
     type: Binary
     binary: {}
+
   strategy:
     type: Docker
     dockerStrategy:
       dockerfilePath: Dockerfile
+
+  # Store the resulting image in OpenShift's internal registry.
   output:
     to:
       kind: ImageStreamTag
       name: middle-school-math-api:latest
+
   resources:
     requests:
       cpu: "1"
       memory: 4Gi
       ephemeral-storage: 10Gi
+
     limits:
       cpu: "4"
-      memory: 16Gi
+
+      # Must be below the compute-build quota of 14Gi.
+      memory: 12Gi
+
       ephemeral-storage: 40Gi
+
+  # Builds are explicitly started by GitHub Actions.
   triggers: []
