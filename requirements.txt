@@ -9,11 +9,11 @@ numpy==1.26.4
 pandas==2.2.2
 
 # RAG and embeddings
-torch==2.8.0
-sentence-transformers==5.1.0
-transformers==4.55.4
-chromadb
-openai
+# torch==2.8.0
+# sentence-transformers==5.1.0
+#transformers==4.55.4
+# chromadb
+# openai
 
 # Snowflake
 snowflake-connector-python==3.6.0

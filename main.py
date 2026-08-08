@@ -22,7 +22,7 @@ from controller.math_questions_routes import math_questions_bp
 # ✅ NEW: import math questions query blueprint (GET endpoint moved out)
 from controller.math_questions_query_routes import math_questions_query_bp
 
-from controller.rag_routes import rag_bp
+# from controller.rag_routes import rag_bp
 
 from controller.rag_std_set_vector_routes import rag_std_set_vector_bp
 
@@ -39,7 +39,7 @@ app.register_blueprint(std_set_bp)
 
 app.register_blueprint(math_questions_bp)
 app.register_blueprint(math_questions_query_bp)
-app.register_blueprint(rag_bp)
+# app.register_blueprint(rag_bp)
 
 app.register_blueprint(rag_std_set_vector_bp)
 
