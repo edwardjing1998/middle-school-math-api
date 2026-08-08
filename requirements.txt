@@ -8,38 +8,18 @@ python-dotenv==1.0.1
 numpy==1.26.4
 pandas==2.2.2
 
-# GPU / ML
+# RAG and embeddings
 torch==2.8.0
-torchvision==0.23.0
-torchaudio==2.8.0
-numba==0.61.2
-cupy-cuda13x
-cudf-cu13
-cuml-cu13
 sentence-transformers==5.1.0
 transformers==4.55.4
-accelerate
-
-# Spark / streaming
-pyspark==3.5.1
-kafka-python==2.0.2
+chromadb
+openai
 
 # Snowflake
 snowflake-connector-python==3.6.0
 snowflake-snowpark-python
 snowflake-sqlalchemy
 
-# RAG / Agent
-langchain
-langchain-community
-llama-index
-chromadb
-qdrant-client
-
-# LLMOps / evaluation
-mlflow
-ragas
-trulens
-
-# OpenAI
-openai
+# Optional Spark and Kafka
+pyspark==3.5.1
+kafka-python==2.0.2
