@@ -12,23 +12,19 @@ COPY requirements.txt ./
 
 RUN python -m pip install \
     --no-cache-dir \
+    --upgrade \
+    pip \
+    setuptools \
+    wheel \
+    && python -m pip install \
+    --no-cache-dir \
     -r requirements.txt
 
 COPY . ./
 
-# Support OpenShift's arbitrary non-root UID.
 RUN chgrp -R 0 /app \
     && chmod -R g=u /app
 
 EXPOSE 8282
 
-CMD [
-    "gunicorn",
-    "--workers", "2",
-    "--threads", "4",
-    "--bind", "0.0.0.0:8282",
-    "--timeout", "180",
-    "--access-logfile", "-",
-    "--error-logfile", "-",
-    "main:app"
-]
+CMD ["gunicorn", "--bind", "0.0.0.0:8282", "--workers", "2", "--threads", "4", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "main:app"]
