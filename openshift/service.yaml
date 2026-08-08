@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: middle-school-math-api
+  labels:
+    app.kubernetes.io/name: middle-school-math-api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: middle-school-math-api
+  ports:
+    - name: http
+      port: 8282
+      targetPort: http
+      protocol: TCP

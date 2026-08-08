@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: middle-school-math-api
+  annotations:
+    image.openshift.io/triggers: >-
+      [{"from":{"kind":"ImageStreamTag","name":"middle-school-math-api:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"api\")].image"}]
+  labels:
+    app.kubernetes.io/name: middle-school-math-api
+    app.kubernetes.io/component: api
+spec:
+  # ChromaDB uses a local persistent database. Keep one writer replica unless
+  # Chroma is replaced by an external multi-node vector database.
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: middle-school-math-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: middle-school-math-api
+        app.kubernetes.io/component: api
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: api
+          image: middle-school-math-api:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8282
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: middle-school-math-api-config
+            - secretRef:
+                name: middle-school-math-api-secrets
+          volumeMounts:
+            - name: chroma-data
+              mountPath: /app/data/chroma
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 8Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        - name: chroma-data
+          persistentVolumeClaim:
+            claimName: middle-school-math-api-chroma

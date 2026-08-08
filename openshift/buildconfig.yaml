@@ -1,0 +1,32 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: middle-school-math-api
+  labels:
+    app.kubernetes.io/name: middle-school-math-api
+spec:
+  runPolicy: SerialLatestOnly
+  completionDeadlineSeconds: 7200
+  successfulBuildsHistoryLimit: 2
+  failedBuildsHistoryLimit: 2
+  source:
+    type: Binary
+    binary: {}
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: middle-school-math-api:latest
+  resources:
+    requests:
+      cpu: "1"
+      memory: 4Gi
+      ephemeral-storage: 10Gi
+    limits:
+      cpu: "4"
+      memory: 16Gi
+      ephemeral-storage: 40Gi
+  triggers: []

@@ -1,0 +1,9 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: middle-school-math-api
+  labels:
+    app.kubernetes.io/name: middle-school-math-api
+spec:
+  lookupPolicy:
+    local: true

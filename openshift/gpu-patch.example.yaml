@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: middle-school-math-api
+spec:
+  template:
+    spec:
+      containers:
+        - name: api
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 2Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "2"
+              memory: 8Gi
+              nvidia.com/gpu: "1"

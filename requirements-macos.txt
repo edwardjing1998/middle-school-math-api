@@ -1,0 +1,25 @@
+# Web API
+Flask==3.0.0
+flask-cors==4.0.0
+gunicorn==21.2.0
+python-dotenv==1.0.1
+
+# Data
+numpy==1.26.4
+pandas==2.2.2
+
+# RAG and embeddings
+torch==2.8.0
+sentence-transformers==5.1.0
+transformers==4.55.4
+chromadb
+openai
+
+# Snowflake
+snowflake-connector-python==3.6.0
+snowflake-snowpark-python
+snowflake-sqlalchemy
+
+# Optional Spark and Kafka
+pyspark==3.5.1
+kafka-python==2.0.2

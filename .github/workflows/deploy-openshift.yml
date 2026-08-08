@@ -1,0 +1,151 @@
+name: Build and deploy with OpenShift internal registry
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openshift-production
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: OpenShift build and deployment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    env:
+      APP_NAME: middle-school-math-api
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate required GitHub configuration
+        env:
+          OPENSHIFT_SERVER: ${{ vars.OPENSHIFT_SERVER }}
+          OPENSHIFT_NAMESPACE: ${{ vars.OPENSHIFT_NAMESPACE }}
+          OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+        run: |
+          required_values=(
+            OPENSHIFT_SERVER
+            OPENSHIFT_NAMESPACE
+            OPENSHIFT_TOKEN
+            SNOWFLAKE_ACCOUNT
+            SNOWFLAKE_USER
+            SNOWFLAKE_PASSWORD
+          )
+
+          for name in "${required_values[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "Missing required GitHub repository value: ${name}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Log in to OpenShift
+        uses: redhat-actions/oc-login@v3
+        with:
+          openshift_server_url: ${{ vars.OPENSHIFT_SERVER }}
+          openshift_token: ${{ secrets.OPENSHIFT_TOKEN }}
+          namespace: ${{ vars.OPENSHIFT_NAMESPACE }}
+
+      - name: Create or update application Secret
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          oc create secret generic middle-school-math-api-secrets \
+            --from-literal=SNOWFLAKE_ACCOUNT="${SNOWFLAKE_ACCOUNT}" \
+            --from-literal=SNOWFLAKE_USER="${SNOWFLAKE_USER}" \
+            --from-literal=SNOWFLAKE_PASSWORD="${SNOWFLAKE_PASSWORD}" \
+            --from-literal=OPENAI_API_KEY="${OPENAI_API_KEY}" \
+            --dry-run=client \
+            -o yaml | oc apply -f -
+
+      - name: Create or update application ConfigMap
+        env:
+          SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
+          SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
+          SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+          CORTEX_SEARCH_SERVICE: ${{ vars.SNOWFLAKE_CORTEX_SEARCH_SERVICE }}
+          CORTEX_COMPLETION_MODEL: ${{ vars.SNOWFLAKE_CORTEX_COMPLETION_MODEL }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+        run: |
+          oc create configmap middle-school-math-api-config \
+            --from-literal=PORT="8282" \
+            --from-literal=SNOWFLAKE_WAREHOUSE="${SNOWFLAKE_WAREHOUSE:-GLOBAL_FINANCE_WAREHOUSE}" \
+            --from-literal=SNOWFLAKE_DATABASE="${SNOWFLAKE_DATABASE:-EDU_AI_APP}" \
+            --from-literal=SNOWFLAKE_SCHEMA="${SNOWFLAKE_SCHEMA:-WEBAPP}" \
+            --from-literal=SNOWFLAKE_ROLE="${SNOWFLAKE_ROLE}" \
+            --from-literal=SNOWFLAKE_CORTEX_SEARCH_SERVICE="${CORTEX_SEARCH_SERVICE:-EDU_AI_APP.WEBAPP.STD_ITEM_SEARCH_SERVICE}" \
+            --from-literal=SNOWFLAKE_CORTEX_COMPLETION_MODEL="${CORTEX_COMPLETION_MODEL:-llama3.3-70b}" \
+            --from-literal=OPENAI_MODEL="${OPENAI_MODEL:-gpt-4o-mini}" \
+            --from-literal=CHROMA_DB_PATH="/app/data/chroma" \
+            --dry-run=client \
+            -o yaml | oc apply -f -
+
+      - name: Apply build and runtime resources
+        run: |
+          oc apply -f openshift/imagestream.yaml
+          oc apply -f openshift/buildconfig.yaml
+          oc apply -f openshift/pvc.yaml
+          oc apply -f openshift/service.yaml
+          oc apply -f openshift/route.yaml
+          oc apply -f openshift/networkpolicy.yaml
+
+      - name: Package the exact Git commit
+        run: |
+          git archive \
+            --format=tar.gz \
+            --output=/tmp/source.tar.gz \
+            "${GITHUB_SHA}"
+
+      - name: Build image inside OpenShift
+        run: |
+          oc start-build "${APP_NAME}" \
+            --from-archive=/tmp/source.tar.gz \
+            --follow \
+            --wait
+
+      - name: Deploy the built image digest
+        run: |
+          IMAGE_REFERENCE="$(
+            oc get imagestreamtag "${APP_NAME}:latest" \
+              -o jsonpath='{.image.dockerImageReference}'
+          )"
+
+          if [ -z "${IMAGE_REFERENCE}" ]; then
+            echo "OpenShift did not return a built image reference" >&2
+            exit 1
+          fi
+
+          oc set image \
+            -f openshift/deployment.yaml \
+            api="${IMAGE_REFERENCE}" \
+            --local \
+            -o yaml > /tmp/deployment.yaml
+
+          oc apply -f /tmp/deployment.yaml
+          oc rollout status \
+            deployment/${APP_NAME} \
+            --timeout=20m
+
+      - name: Verify deployment
+        run: |
+          oc get buildconfig "${APP_NAME}"
+          oc get imagestream "${APP_NAME}"
+          oc get deployment "${APP_NAME}"
+          oc get pods -l app.kubernetes.io/name=middle-school-math-api
+          oc get route "${APP_NAME}"

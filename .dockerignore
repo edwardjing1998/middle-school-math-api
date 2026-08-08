@@ -1,0 +1,17 @@
+.git
+.gitignore
+.idea
+.venv
+__MACOSX
+.DS_Store
+__pycache__
+*.py[cod]
+*.log
+*.zip
+.env
+.env.*
+!.env.example
+chroma_db/
+chroma.db
+chroma.sqlite3
+openshift/secret.yaml
